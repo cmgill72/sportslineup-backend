@@ -13,6 +13,7 @@ from datetime import date
 import json
 import os
 from pathlib import Path
+from urllib.parse import urlsplit
 from typing import Any
 from .normalization import merge_channels
 
@@ -47,5 +48,13 @@ def licensed_listings(day: date) -> dict[str, list[dict[str, Any]]]:
                     'channel': channel, 'type': 'source_listing',
                     'confidence': 'provider_listed', 'source': source,
                     'country': 'US', 'url': None}
+        # Network art needs an explicit authorized source host and rights clearance.
+        # Never trust arbitrary URLs in user-supplied broadcast metadata.
+        logo_value = item.get('logoURL')
+        hosts = {h.strip().lower() for h in os.getenv('SPORTSLINEUP_LICENSED_LOGO_HOSTS', '').split(',') if h.strip()}
+        if isinstance(logo_value, str) and len(logo_value) < 500 and hosts:
+            parsed = urlsplit(logo_value)
+            if parsed.scheme == 'https' and parsed.hostname in hosts and not parsed.username and not parsed.password:
+                item_row['logoURL'] = logo_value
         merge_channels(out.setdefault(event_id, []), [item_row])
     return out

@@ -35,3 +35,11 @@ services:
         value: "true"
       - key: SPORTSLINEUP_ENABLE_TEAM_BADGES
         value: "false"
+
+      # Curated network thumbnail registry. Preview is for internal testing only;
+      # set to licensed before App Store distribution, after rights review.
+      - key: SPORTSLINEUP_NETWORK_LOGO_MODE
+        value: "preview"
+      # Optional managed HTTPS JSON manifest URL for updates after launch.
+      - key: SPORTSLINEUP_NETWORK_LOGO_MANIFEST_URL
+        sync: false

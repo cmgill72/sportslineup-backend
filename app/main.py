@@ -6,13 +6,15 @@ from zoneinfo import ZoneInfo
 from fastapi import FastAPI, HTTPException, Query
 from .normalization import SPORTS
 from .live_scores import premium_enabled, allow_team_badges, fetch_livescores
+from .team_badges import badge_lookup
 from .aggregation import fetch_schedule
 from .provider import ProviderUnavailable, credential_mode, probe_provider
 from .supplemental import enabled_providers
 from .gracenote import enabled as gracenote_enabled, configured as gracenote_configured, lineups_for_zip, GracenoteUnavailable, ZIP_RE
 from os import getenv
+from .network_logos import catalog_response, resolve_network_name
 
-app = FastAPI(title='SportsLineup API', version='0.7.3')
+app = FastAPI(title='SportsLineup API', version='0.7.6')
 CACHE: dict[str, tuple[float, dict]] = {}
 CACHE_SECONDS = 600
 STALE_MAX_SECONDS = 7200
@@ -20,7 +22,7 @@ STALE_MAX_SECONDS = 7200
 
 @app.get('/health')
 async def health():
-    return {'status': 'ok', 'app': 'SportsLineup', 'version': '0.7.3',
+    return {'status': 'ok', 'app': 'SportsLineup', 'version': '0.7.6',
             'supplementalProvidersEnabled': enabled_providers(),
             'sportsdbKeyMode': credential_mode(),
             'sportsdbKeyConfigured': credential_mode() == 'configured',
@@ -28,6 +30,12 @@ async def health():
             'liveScoresEnabled': premium_enabled(), 'teamBadgesEnabled': allow_team_badges(),
             'gracenoteEnabled': gracenote_enabled(), 'gracenoteKeyConfigured': gracenote_configured()}
 
+
+
+@app.get('/v1/teams/badge')
+async def team_badge(name: str = Query(min_length=2, max_length=72)):
+    """Optional exact team-name lookup; no user key and no copyright grant."""
+    return await badge_lookup(name)
 
 @app.get('/v1/scores')
 async def scores():
@@ -47,6 +55,13 @@ async def provider_diagnostics():
     return await probe_provider()
 
 
+
+@app.get('/v1/networks/logos')
+async def network_logo_library():
+    """Curated, cacheable network image registry; no keys or protected originals."""
+    from fastapi.responses import JSONResponse
+    return JSONResponse(content=await catalog_response(),headers={'Cache-Control':'public, max-age=3600'})
+
 @app.get('/v1/sports')
 async def sports():
     return {'sports': SPORTS}
@@ -54,7 +69,7 @@ async def sports():
 
 @app.get('/v1/providers')
 async def providers():
-    return {'version': '0.7.3', 'enabled': ['TheSportsDB'] + (['Gracenote (licensed)'] if gracenote_enabled() and gracenote_configured() else []) + enabled_providers() + (['Authorized Event Feed'] if getenv('SPORTSLINEUP_AUTHORIZED_EVENTS_PATH') else []),
+    return {'version': '0.7.6', 'enabled': ['TheSportsDB'] + (['Gracenote (licensed)'] if gracenote_enabled() and gracenote_configured() else []) + enabled_providers() + (['Authorized Event Feed'] if getenv('SPORTSLINEUP_AUTHORIZED_EVENTS_PATH') else []),
             'note': 'Gracenote requires a licensed contract and selected local TV lineup. Extra publicly reachable sports feeds are opt-in research connectors. Verify API rights before distribution; no source certifies subscriber-specific viewing eligibility.'}
 
 
