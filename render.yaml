@@ -30,11 +30,13 @@ services:
       - key: GRACENOTE_API_KEY
         sync: false
 
-      # v0.7 premium score feed; leave badge display off until image rights cleared.
+      # Team-badge artwork is opt-in; set it in Render Dashboard.
+      # Do not overwrite an existing preference during deploy.
+      # v0.7 premium score feed.
       - key: SPORTSLINEUP_ENABLE_LIVE_SCORES
         value: "true"
       - key: SPORTSLINEUP_ENABLE_TEAM_BADGES
-        value: "false"
+        sync: false
 
       # Curated network thumbnail registry. Preview is for internal testing only;
       # set to licensed before App Store distribution, after rights review.

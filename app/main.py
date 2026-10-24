@@ -14,7 +14,7 @@ from .gracenote import enabled as gracenote_enabled, configured as gracenote_con
 from os import getenv
 from .network_logos import catalog_response, resolve_network_name
 
-app = FastAPI(title='SportsLineup API', version='0.7.6')
+app = FastAPI(title='SportsLineup API', version='0.7.7')
 CACHE: dict[str, tuple[float, dict]] = {}
 CACHE_SECONDS = 600
 STALE_MAX_SECONDS = 7200
@@ -22,7 +22,7 @@ STALE_MAX_SECONDS = 7200
 
 @app.get('/health')
 async def health():
-    return {'status': 'ok', 'app': 'SportsLineup', 'version': '0.7.6',
+    return {'status': 'ok', 'app': 'SportsLineup', 'version': '0.7.7',
             'supplementalProvidersEnabled': enabled_providers(),
             'sportsdbKeyMode': credential_mode(),
             'sportsdbKeyConfigured': credential_mode() == 'configured',
@@ -56,6 +56,25 @@ async def provider_diagnostics():
 
 
 
+@app.get('/v1/artwork/status')
+async def artwork_status():
+    """Safe diagnostic for what this deployment permits (never reveals API credentials)."""
+    catalog = await catalog_response()
+    entries = catalog.get('networks', [])
+    return {
+        'version': '0.7.7',
+        'teamBadgesEnabled': allow_team_badges(),
+        'teamBadgesReason': ('enabled; individual badges depend on TheSportsDB artwork' if allow_team_badges()
+                             else 'disabled_on_render; set SPORTSLINEUP_ENABLE_TEAM_BADGES=true if rights allow'),
+        'networkMode': catalog['mode'],
+        'networkEntries': len(entries),
+        'networkImageReferences': sum(bool(row.get('imageURL')) for row in entries),
+        'networkFallbackEntries': sum(not row.get('imageURL') for row in entries),
+        'networkImagesLiveVerified': False,
+        'note': 'Image references may fail to download. Trademark rights must be reviewed before public distribution.'
+    }
+
+
 @app.get('/v1/networks/logos')
 async def network_logo_library():
     """Curated, cacheable network image registry; no keys or protected originals."""
@@ -69,7 +88,7 @@ async def sports():
 
 @app.get('/v1/providers')
 async def providers():
-    return {'version': '0.7.6', 'enabled': ['TheSportsDB'] + (['Gracenote (licensed)'] if gracenote_enabled() and gracenote_configured() else []) + enabled_providers() + (['Authorized Event Feed'] if getenv('SPORTSLINEUP_AUTHORIZED_EVENTS_PATH') else []),
+    return {'version': '0.7.7', 'enabled': ['TheSportsDB'] + (['Gracenote (licensed)'] if gracenote_enabled() and gracenote_configured() else []) + enabled_providers() + (['Authorized Event Feed'] if getenv('SPORTSLINEUP_AUTHORIZED_EVENTS_PATH') else []),
             'note': 'Gracenote requires a licensed contract and selected local TV lineup. Extra publicly reachable sports feeds are opt-in research connectors. Verify API rights before distribution; no source certifies subscriber-specific viewing eligibility.'}
 
 

@@ -27,12 +27,17 @@ def select_badge(name: str, data: object) -> str | None:
     if not isinstance(data, dict) or not isinstance(data.get('teams'), list):
         return None
     target = normalize_name(name)
-    for record in data['teams']:
-        if not isinstance(record, dict):
-            continue
-        if normalize_name(str(record.get('strTeam') or '')) != target:
-            continue
-        return safe_badge(record.get('strBadge') or record.get('strTeamBadge'))
+    exact = [record for record in data['teams'] if isinstance(record, dict)
+             and normalize_name(str(record.get('strTeam') or '')) == target]
+    if len(exact) == 1:
+        return safe_badge(exact[0].get('strBadge') or exact[0].get('strTeamBadge'))
+    # TheSportsDB sometimes lists a school's mascot in the canonical name while
+    # the schedule only lists the school. Never guess if multiple candidates match.
+    safe_prefix = [record for record in data['teams'] if isinstance(record, dict)
+                   and normalize_name(str(record.get('strTeam') or '')).startswith(target)
+                   and 4 <= len(target)]
+    if not exact and len(safe_prefix) == 1:
+        return safe_badge(safe_prefix[0].get('strBadge') or safe_prefix[0].get('strTeamBadge'))
     return None
 
 

@@ -19,7 +19,7 @@ class NetworkLogoTests(unittest.TestCase):
             data=res.json()
             self.assertEqual(data['mode'],'preview')
             abc=catalog.resolve_network_name('ABC US',data['networks'])
-            self.assertTrue(abc['imageURL'].startswith('https://commons.wikimedia.org/'))
+            self.assertTrue(abc['imageURL'].startswith('https://upload.wikimedia.org/'))
             self.assertEqual(abc['displayStatus'],'image')
             self.assertIn('max-age=',res.headers.get('cache-control',''))
 

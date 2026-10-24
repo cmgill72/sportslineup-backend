@@ -1,7 +1,7 @@
 {
-  "version": 1,
+  "version": 2,
   "lastReviewed": "2026-10-24",
-  "notes": "Reference images are development-preview only. Do not enable preview mode in production without rights review. Logos remain the property of their owners.",
+  "notes": "Reference images are development-preview only. Do not enable preview mode in production without rights review. Logos remain the property of their owners. v0.7.7 now uses direct PNG asset URLs instead of Special:FilePath redirects; image paths were verified from Commons file pages, but actual iPhone and deployment results are untested.",
   "networks": [
     {
       "id": "abc",
@@ -11,7 +11,7 @@
         "ABC US",
         "ABC Television"
       ],
-      "imageURL": "https://commons.wikimedia.org/wiki/Special:FilePath/ABC-2021-LOGO.png",
+      "imageURL": "https://upload.wikimedia.org/wikipedia/commons/4/45/ABC-2021-LOGO.png",
       "sourceURL": "https://commons.wikimedia.org/wiki/File:ABC-2021-LOGO.png",
       "source": "Wikimedia Commons",
       "licenseReview": "Public domain / simple logo; trademark review required",
@@ -25,7 +25,7 @@
         "ESPN US",
         "ESPN HD"
       ],
-      "imageURL": "https://commons.wikimedia.org/wiki/Special:FilePath/ESPN_logo.png",
+      "imageURL": "https://upload.wikimedia.org/wikipedia/commons/9/99/ESPN_logo.png",
       "sourceURL": "https://commons.wikimedia.org/wiki/File:ESPN_logo.png",
       "source": "Wikimedia Commons",
       "licenseReview": "CC0 reported by uploader; trademark review required",
@@ -40,7 +40,7 @@
         "Fox Network",
         "Fox Broadcasting"
       ],
-      "imageURL": "https://commons.wikimedia.org/wiki/Special:FilePath/Fox_Broadcasting_Company_logo_2019.png",
+      "imageURL": "https://upload.wikimedia.org/wikipedia/commons/7/70/Fox_Broadcasting_Company_logo_2019.png",
       "sourceURL": "https://commons.wikimedia.org/wiki/File:Fox_Broadcasting_Company_logo_2019.png",
       "source": "Wikimedia Commons",
       "licenseReview": "CC0 reported by uploader; trademark review required",
@@ -54,7 +54,7 @@
         "NBC US",
         "NBC Network"
       ],
-      "imageURL": "https://commons.wikimedia.org/wiki/Special:FilePath/NBC_logo_2022.png",
+      "imageURL": "https://upload.wikimedia.org/wikipedia/commons/5/5e/NBC_logo_2022.png",
       "sourceURL": "https://commons.wikimedia.org/wiki/File:NBC_logo_2022.png",
       "source": "Wikimedia Commons",
       "licenseReview": "Public domain / simple logo; trademark review required",
@@ -68,7 +68,7 @@
         "CBS US",
         "CBS Television"
       ],
-      "imageURL": "https://commons.wikimedia.org/wiki/Special:FilePath/CBS_Logo.png",
+      "imageURL": "https://upload.wikimedia.org/wikipedia/commons/7/7a/CBS_Logo.png",
       "sourceURL": "https://commons.wikimedia.org/wiki/File:CBS_Logo.png",
       "source": "Wikimedia Commons",
       "licenseReview": "Public domain / simple logo; original uploader metadata incomplete; trademark review required",
@@ -83,7 +83,7 @@
         "CW Network",
         "The CW US"
       ],
-      "imageURL": "https://commons.wikimedia.org/wiki/Special:FilePath/The_CW.png",
+      "imageURL": "https://upload.wikimedia.org/wikipedia/commons/3/39/The_CW.png",
       "sourceURL": "https://commons.wikimedia.org/wiki/File:The_CW.png",
       "source": "Wikimedia Commons",
       "licenseReview": "CC-BY 2.0 recorded by uploader; trademark + attribution review required",
@@ -133,12 +133,12 @@
       "aliases": [
         "Fox Sports 1"
       ],
-      "imageURL": null,
-      "sourceURL": null,
-      "source": "SportsLineup",
-      "licenseReview": "No cleared image in catalog",
-      "permission": "none",
-      "thumbnailHint": "fallback"
+      "imageURL": "https://upload.wikimedia.org/wikipedia/commons/5/52/FS1_logo.png",
+      "sourceURL": "https://commons.wikimedia.org/wiki/File:FS1_logo.png",
+      "source": "Wikimedia Commons",
+      "licenseReview": "Uploader reports CC0; third-party trademark review required",
+      "permission": "development_preview",
+      "thumbnailHint": "fit_96"
     },
     {
       "id": "foxsports2",

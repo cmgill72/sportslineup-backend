@@ -16,7 +16,7 @@ class APIv02Tests(unittest.TestCase):
     def test_health_contract(self):
         response = self.request('/health')
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json()['version'], '0.7.6')
+        self.assertEqual(response.json()['version'], '0.7.7')
 
     def test_unknown_timezone_rejected(self):
         response = self.request(f'/v1/schedule?date={date.today().isoformat()}&tz=Nonexistent%2FOrbit')
