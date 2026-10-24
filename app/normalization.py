@@ -5,6 +5,7 @@ returning an array. Keep this distinct from schedule `events` and TV-first rows.
 """
 from __future__ import annotations
 from datetime import datetime, timezone, date
+import re
 from typing import Any
 from zoneinfo import ZoneInfo
 
@@ -106,6 +107,44 @@ def broadcast_rows(raw: list[dict[str, Any]], source: str = 'TheSportsDB', allow
     return matches
 
 
+def normalize_status(value: Any) -> str:
+    """Conservative, explicit status mapping. Unknown status does NOT mean live."""
+    state = ' '.join(str(value or '').strip().upper().replace('_', ' ').split())
+    if state in {'FT', 'AET', 'PEN', 'AOT', 'AP', 'FINAL', 'FINISHED',
+                 'FULL TIME', 'GAME OVER', 'MATCH FINISHED', 'COMPLETED', 'OFF', 'ENDED'}:
+        return 'final'
+    if state in {'PST', 'POST', 'POSTPONED', 'PPD', 'DELAYED', 'DELAY'}:
+        return 'postponed'
+    if state in {'CANC', 'ABD', 'CANCELLED', 'CANCELED', 'ABANDONED'}:
+        return 'cancelled'
+    if state in {'LIVE', 'IN', 'IN PROGRESS', 'INPROGRESS', 'PLAYING',
+                 'HT', 'HALF TIME', 'HALFTIME', 'INTERMISSION', 'OT', 'OVERTIME',
+                 'Q1', 'Q2', 'Q3', 'Q4', '1H', '2H', '1ST', '2ND', '3RD'}:
+        return 'live'
+    if re.fullmatch(r'(?:1ST|2ND|3RD|4TH) (?:HALF|QUARTER|PERIOD)', state):
+        return 'live'
+    # NS / TBD / SCHEDULED / blank / unknown / malformed status -> never LIVE.
+    return 'scheduled'
+
+
+def _completed_result(raw: dict[str, Any], status: str) -> dict[str, Any] | None:
+    if status != 'final':
+        return None
+    def parse(value):
+        if isinstance(value, bool) or value is None or str(value).strip() == '':
+            return None
+        text = str(value).strip()
+        return int(text) if text.isdigit() and 0 <= int(text) <= 999 else None
+    home = parse(raw.get('intHomeScore'))
+    away = parse(raw.get('intAwayScore'))
+    if home is None or away is None:
+        return None
+    return {'home': home, 'away': away, 'progress': 'Final', 'state': 'final',
+            'source': 'TheSportsDB final event record',
+            'homeTeam': str(raw.get('strHomeTeam') or '').strip() or None,
+            'awayTeam': str(raw.get('strAwayTeam') or '').strip() or None}
+
+
 def normalize_event(raw: dict[str, Any], broadcasts: dict[str, list[dict[str, Any]]] | None = None) -> dict[str, Any] | None:
     sport = classify(raw)
     event_id = str(raw.get('idEvent') or '').strip()
@@ -116,17 +155,16 @@ def normalize_event(raw: dict[str, Any], broadcasts: dict[str, list[dict[str, An
         home = str(raw.get('strHomeTeam') or '').strip()
         away = str(raw.get('strAwayTeam') or '').strip()
         title = f'{away} vs. {home}' if home and away else 'Event (title unavailable)'
-    state = str(raw.get('strStatus') or '').upper().strip()
-    if state in ('FT', 'AET', 'PEN', 'AOT', 'AP', 'FINAL'):
-        status = 'final'
-    elif state in ('PST', 'POST', 'POSTPONED'):
-        status = 'postponed'
-    elif state in ('CANC', 'ABD', 'CANCELLED'):
-        status = 'cancelled'
-    elif state not in ('', 'NS', 'TBD', 'SCHEDULED'):
-        status = 'live'
-    else:
-        status = 'scheduled'
+    status = normalize_status(raw.get('strStatus'))
+    from .live_scores import safe_badge, allow_team_badges
+    badge_home = safe_badge(raw.get('strHomeTeamBadge'))
+    badge_away = safe_badge(raw.get('strAwayTeamBadge'))
+    identity = None
+    if allow_team_badges() and (badge_home or badge_away):
+        identity = {'home': str(raw.get('strHomeTeam') or '').strip(),
+                    'away': str(raw.get('strAwayTeam') or '').strip(),
+                    'homeBadgeURL': badge_home, 'awayBadgeURL': badge_away,
+                    'artworkSource': 'TheSportsDB (third-party logo rights review required)'}
     return {
         'id': f'tsdb-{event_id}',
         'sport': sport,
@@ -134,6 +172,7 @@ def normalize_event(raw: dict[str, Any], broadcasts: dict[str, list[dict[str, An
         'title': title,
         'startTime': timestamp(raw),
         'status': status,
+        'score': _completed_result(raw, status), 'teamIdentity': identity,
         'venue': str(raw.get('strVenue') or '').strip() or None,
         'broadcasts': list((broadcasts or {}).get(event_id, [])),
         '_sourceDay': str(raw.get('dateEvent') or '').strip(),
@@ -163,6 +202,11 @@ def merge_channels(existing: list[dict[str, Any]], incoming: list[dict[str, Any]
             evidence = list(saved.get('sources') or ([saved['source']] if saved.get('source') else []))
             extra = list(row.get('sources') or ([source] if source else []))
             saved['sources'] = list(dict.fromkeys(evidence + extra))
+            # Retain event-specific market/evidence details from a verified
+            # source even when the channel name already came from another feed.
+            for field in ('marketScope', 'evidenceURL', 'verifiedOn'):
+                if row.get(field) and not saved.get(field):
+                    saved[field] = row[field]
         else:
             copy = dict(row)
             copy['sources'] = list(dict.fromkeys(row.get('sources') or ([source] if source else [])))

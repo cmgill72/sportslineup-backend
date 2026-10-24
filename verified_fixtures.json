@@ -1,0 +1,88 @@
+[
+  {
+    "date": "2026-10-23",
+    "sport": "nba",
+    "matchup": [
+      "San Antonio Spurs",
+      "Houston Rockets"
+    ],
+    "utcStart": "2026-10-24T01:30:00Z",
+    "broadcasts": [
+      {
+        "channel": "Prime Video",
+        "marketScope": "national_streaming",
+        "source": "San Antonio Spurs (official schedule)",
+        "evidenceURL": "https://www.nba.com/spurs/schedule",
+        "verifiedOn": "2026-10-23"
+      }
+    ]
+  },
+  {
+    "date": "2026-10-23",
+    "sport": "ncaa_football",
+    "matchup": [
+      "Tulsa",
+      "Army"
+    ],
+    "utcStart": "2026-10-24T00:30:00Z",
+    "broadcasts": [
+      {
+        "channel": "ESPN2",
+        "marketScope": "national",
+        "source": "Tulsa Athletics (official)",
+        "evidenceURL": "https://tulsahurricane.com/news/2026/10/21/football-tulsa-welcomes-army-to-h-a-chapman-stadium-friday-night",
+        "verifiedOn": "2026-10-23"
+      }
+    ]
+  },
+  {
+    "date": "2026-10-23",
+    "sport": "ncaa_football",
+    "matchup": [
+      "Wyoming",
+      "Air Force"
+    ],
+    "utcStart": "2026-10-24T01:00:00Z",
+    "broadcasts": [
+      {
+        "channel": "The CW",
+        "marketScope": "national_affiliate",
+        "source": "Air Force Athletics (official)",
+        "evidenceURL": "https://goairforcefalcons.com/news/2026/10/19/football-game-7-air-force-at-wyoming",
+        "verifiedOn": "2026-10-23"
+      }
+    ]
+  },
+  {
+    "date": "2026-10-23",
+    "sport": "nhl",
+    "matchup": [
+      "Colorado Avalanche",
+      "Tampa Bay Lightning"
+    ],
+    "utcStart": "2026-10-24T01:00:00Z",
+    "broadcasts": [
+      {
+        "channel": "Altitude Sports",
+        "marketScope": "Colorado Avalanche territory",
+        "source": "Colorado Avalanche (official)",
+        "evidenceURL": "https://www.nhl.com/avalanche/news/game-preview-10-23-26",
+        "verifiedOn": "2026-10-23"
+      },
+      {
+        "channel": "Altitude+",
+        "marketScope": "Colorado Avalanche territory",
+        "source": "Colorado Avalanche (official)",
+        "evidenceURL": "https://www.nhl.com/avalanche/news/game-preview-10-23-26",
+        "verifiedOn": "2026-10-23"
+      },
+      {
+        "channel": "The Spot - Tampa Bay 66",
+        "marketScope": "Tampa Bay Lightning territory",
+        "source": "Tampa Bay Lightning (official)",
+        "evidenceURL": "https://www.nhl.com/lightning/news/nuts-bolts-back-to-back-begins-in-colorado-oct-23-2026",
+        "verifiedOn": "2026-10-23"
+      }
+    ]
+  }
+]

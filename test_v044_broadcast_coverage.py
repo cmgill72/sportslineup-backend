@@ -84,7 +84,7 @@ class BroadcastCoverageFixTests(unittest.TestCase):
         sample={'date':today,'timezone':'America/Chicago','coverage':{'events':4,'withBroadcast':1},
                 'sourceHealth':[], 'diagnostics':{'tvLookupEligible':3, 'tvLookupNoListings':2},
                 'events':[{'title':'Example'}], 'fetchedAt':'2026-10-23T22:00:00Z'}
-        with patch.object(main,'CACHE',{f'{today}:America/Chicago:': (monotonic(), sample)}):
+        with patch.object(main,'CACHE',{f'{today}:America/Chicago:::False:': (monotonic(), sample)}):
             r=TestClient(app).get(f'/v1/diagnostics/broadcast?date={today}&tz=America/Chicago')
         self.assertEqual(r.status_code,200)
         self.assertNotIn('events',r.json())

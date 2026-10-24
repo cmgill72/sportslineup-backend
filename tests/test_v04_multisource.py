@@ -155,7 +155,7 @@ class AggregationTests(unittest.TestCase):
             result=asyncio.run(fetch_schedule(DAY,'America/Chicago'))
         self.assertEqual(len(result['events']),1)
         self.assertTrue(result['partial'])
-        self.assertEqual(result['guideVersion'],'0.5')
+        self.assertEqual(result['guideVersion'],'0.7.0')
         self.assertEqual(result['diagnostics']['providerRequestFailures'],1)
         self.assertEqual(result['sourceHealth'][0]['status'],'failed')
         self.assertEqual(result['events'][0]['broadcastStatus'],'not_listed_by_provider')
@@ -212,7 +212,7 @@ class StaleCacheTests(unittest.TestCase):
         from time import monotonic
         from datetime import datetime
         day=datetime.now().date()
-        key=f'{day.isoformat()}:America/Chicago:'
+        key=f'{day.isoformat()}:America/Chicago:::False:'
         old={'date':day.isoformat(),'timezone':'America/Chicago',
              'events':[],'source':'Earlier provider snapshot','coverage_note':'old',
              'partial':True,'stale':False}

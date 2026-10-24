@@ -74,7 +74,7 @@ class EvidenceTests(unittest.TestCase):
         data={'date':day,'timezone':'America/Chicago','quality':quality_report([],[],{}),
               'fetchedAt':'2026-10-23T20:00:00Z', 'sourceHealth':[],
               'events':[{'secret':'MUST_NOT_RETURN'}], 'stale':False}
-        with patch.object(main,'CACHE',{f'{day}:America/Chicago:':(monotonic(),data)}):
+        with patch.object(main,'CACHE',{f'{day}:America/Chicago:::False:':(monotonic(),data)}):
             response=TestClient(app).get(f'/v1/coverage/gaps?date={day}&tz=America/Chicago')
         self.assertEqual(response.status_code,200)
         self.assertNotIn('events',response.json())

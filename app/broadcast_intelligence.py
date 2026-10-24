@@ -15,6 +15,7 @@ STREAMING_LABELS = {
     'NETFLIX': 'Netflix', 'APPLE TV': 'Apple TV', 'APPLE TV+': 'Apple TV',
     'HBO MAX': 'HBO Max', 'MAX': 'HBO Max', 'DAZN': 'DAZN',
     'VICTORY+': 'Victory+', 'VICTORY PLUS': 'Victory+',
+    'ALTITUDE+': 'Altitude+',
 }
 CABLE_LABELS = {
     'ESPN', 'ESPN2', 'ESPNU', 'ESPN U', 'ESPNEWS', 'TNT', 'TBS', 'TRUTV',
@@ -28,7 +29,7 @@ REGIONAL_LABELS = {
     'MARQUEE SPORTS NETWORK', 'ALTITUDE', 'ALTITUDE SPORTS',
     'SPACE CITY HOME NETWORK', 'SPORTSNET PITTSBURGH', 'ROOT SPORTS',
     'SPECTRUM SPORTSNET', 'SPECTRUM SPORTSNET LA', 'FANDUEL SPORTS NETWORK',
-    'BALLY SPORTS', 'NBC SPORTS BOSTON', 'NBC SPORTS PHILADELPHIA',
+    'BALLY SPORTS', 'THE SPOT - TAMPA BAY 66', 'NBC SPORTS BOSTON', 'NBC SPORTS PHILADELPHIA',
     'NBC SPORTS CALIFORNIA', 'NBC SPORTS BAY AREA',
 }
 REGIONAL_PREFIXES = ('FANDUEL SPORTS NETWORK ', 'BALLY SPORTS ', 'NBC SPORTS REGIONAL ')
@@ -61,7 +62,26 @@ def classify_channel(channel: str) -> dict[str, Any]:
 def annotate_broadcast(row: dict[str, Any]) -> dict[str, Any]:
     enriched = dict(row)
     enriched.update(classify_channel(str(row.get('channel') or '')))
+    # Gracenote identifies an actual station in a *selected* local lineup,
+    # not an event's national rights or the user's subscription access.
+    if row.get('marketScope') == 'selected_lineup':
+        enriched['distribution'] = 'local_lineup'
+        enriched['potentialAntenna'] = row.get('lineupType') == 'OTA'
+        enriched['accessNote'] = 'Listed in the selected local TV lineup. Tuning, reception, package and blackout access remain unverified.'
     enriched['availability'] = 'unverified_for_viewer'
+    scope = str(row.get('marketScope') or '').strip()
+    if scope == 'selected_lineup':
+        pass  # Preserve stricter local-lineup description above.
+    elif scope.upper() == 'H':
+        enriched['accessNote'] = 'Home-team market broadcast; market boundaries and your access are unverified.'
+    elif scope.upper() == 'A':
+        enriched['accessNote'] = 'Away-team market broadcast; market boundaries and your access are unverified.'
+    elif scope and scope.lower() not in ('unspecified', 'n', 'national', 'national_streaming', 'national_affiliate'):
+        enriched['accessNote'] = (f'Market: {scope}. Coverage in your ZIP code and subscription eligibility are not verified.')
+    elif scope == 'national_streaming':
+        enriched['accessNote'] = 'Nationally listed streaming event; an eligible subscription is required.'
+    elif scope in ('national', 'national_affiliate'):
+        enriched['accessNote'] = 'Nationally listed network; local channel carriage or TV-package access is not verified.'
     sources = row.get('sources') or ([row['source']] if row.get('source') else [])
     enriched['sources'] = list(dict.fromkeys(str(s) for s in sources if s))
     enriched['evidenceCount'] = len(enriched['sources'])
@@ -78,7 +98,7 @@ def annotate_events(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 
 def distribution_summary(events: list[dict[str, Any]]) -> dict[str, int]:
-    result = {k: 0 for k in ('over_the_air_network', 'cable_network', 'streaming_service', 'regional_network', 'unknown')}
+    result = {k: 0 for k in ('over_the_air_network', 'cable_network', 'streaming_service', 'regional_network', 'local_lineup', 'unknown')}
     for event in events:
         for broadcast in event.get('broadcasts', []):
             key = broadcast.get('distribution', 'unknown')
