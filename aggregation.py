@@ -22,7 +22,8 @@ async def fetch_schedule(day: date, tz: str) -> dict[str, Any]:
     has_other = any(r['status'] in ('ok','empty') for r in provider_health)
     has_licensed = bool(licensed_health and licensed_health['status'] in ('ok','empty'))
     if not primary_ok and not has_other and not has_licensed:
-        raise ProviderUnavailable('No enabled sports schedule provider returned a usable response')
+        failure_code = primary_raw.code if isinstance(primary_raw, ProviderUnavailable) else 'upstream_unavailable'
+        raise ProviderUnavailable('No enabled sports schedule provider returned a usable response', failure_code)
     primary = primary_raw['events'] if primary_ok else []
     extras = events_from_extra + licensed_rows
     merged, reconciliation = reconcile(primary, extras)

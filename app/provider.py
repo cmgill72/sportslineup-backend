@@ -30,12 +30,79 @@ RAW_CACHE_TTL = 900
 _REQUEST_TIMES: deque[float] = deque()
 _REQUEST_LOCK = asyncio.Lock()
 
+# Public diagnostics must never include the credential or a full URL embedding it.
 class ProviderUnavailable(RuntimeError):
-    pass
+    def __init__(self, message: str, code: str = 'upstream_unavailable'):
+        super().__init__(message)
+        self.code = code
+
+
+def credential_mode() -> str:
+    return 'public_preview' if _client_key() == '123' else 'configured'
+
+
+PROBE_CACHE: dict[str, Any] = {}
+PROBE_TTL = 300
+
+
+async def probe_provider(transport: httpx.AsyncBaseTransport | None = None) -> dict[str, Any]:
+    """One short, cached diagnostic request; NEVER returns the provider key."""
+    key = _client_key()
+    cached = PROBE_CACHE.get('latest')
+    if transport is None and cached and cached[0] == key and monotonic() - cached[1] < PROBE_TTL:
+        return dict(cached[2])
+    # Endpoint and query are innocuous. Avoid exposing a URL containing the key in logs/responses.
+    path = f'{BASE}/{quote(key, safe="")}/eventsday.php'
+    result: dict[str, Any] = {'provider': 'TheSportsDB', 'credentialMode': credential_mode(),
+                              'credentialPresent': key != '123', 'status': 'unavailable',
+                              'upstreamStatus': None}
+    try:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(10, connect=5), transport=transport,
+                                     headers={'Accept': 'application/json'}) as client:
+            response = await client.get(path, params={'d': date.today().isoformat(), 's': 'Basketball'})
+            result['upstreamStatus'] = response.status_code
+            if response.status_code == 429:
+                result['status'] = 'rate_limited'
+            elif response.status_code in (401, 403):
+                result['status'] = 'authentication_failed'
+            elif response.status_code >= 500:
+                result['status'] = 'upstream_error'
+            elif response.status_code >= 400:
+                # TheSportsDB v1 can reject an invalid premium key with HTTP 400.
+                try:
+                    body = response.json()
+                    invalid_key = isinstance(body, dict) and any(
+                        'invalid' in str(body.get(name, '')).lower() and
+                        'key' in str(body.get(name, '')).lower()
+                        for name in ('Message','message','error'))
+                except ValueError:
+                    invalid_key = False
+                result['status'] = 'authentication_failed' if invalid_key else 'request_rejected'
+            else:
+                try:
+                    payload = response.json()
+                    if not isinstance(payload, dict):
+                        result['status'] = 'invalid_response'
+                    elif any('invalid' in str(payload.get(field, '')).lower()
+                             for field in ('Message','message','error')):
+                        result['status'] = 'authentication_failed'
+                    elif 'events' in payload:
+                        result['status'] = 'ok'
+                    else:
+                        result['status'] = 'unexpected_payload'
+                except ValueError:
+                    result['status'] = 'invalid_response'
+    except httpx.TimeoutException:
+        result['status'] = 'timeout'
+    except httpx.HTTPError:
+        result['status'] = 'network_error'
+    if transport is None:
+        PROBE_CACHE['latest'] = (key, monotonic(), dict(result))
+    return result
 
 
 def _lookup_limit(is_free: bool) -> int:
-    default = 3 if is_free else 16
+    default = 3 if is_free else 40
     try:
         return min(48, max(0, int(os.getenv('SPORTSDB_LOOKUP_LIMIT', default))))
     except ValueError:
@@ -84,15 +151,38 @@ async def fetch_schedule(day: date, tz_name: str = 'America/Chicago', transport:
                     _REQUEST_TIMES.append(moment)
             try:
                 response = await client.get(url, params=params)
-                response.raise_for_status()
+                if response.status_code == 429:
+                    raise ProviderUnavailable('Sports data provider rate limited', 'rate_limited')
+                if response.status_code in (401, 403):
+                    raise ProviderUnavailable('Sports data provider rejected credentials', 'authentication_failed')
+                if 400 <= response.status_code < 500:
+                    try:
+                        body = response.json()
+                        invalid_key = isinstance(body, dict) and any(
+                            'invalid' in str(body.get(name, '')).lower() and
+                            'key' in str(body.get(name, '')).lower()
+                            for name in ('Message', 'message', 'error'))
+                    except ValueError:
+                        invalid_key = False
+                    if invalid_key:
+                        raise ProviderUnavailable('Sports provider rejected the API key', 'authentication_failed')
+                    raise ProviderUnavailable('Sports data provider rejected the request', 'request_rejected')
+                if response.status_code >= 500:
+                    raise ProviderUnavailable('Sports data provider upstream error', 'upstream_error')
                 parsed = response.json()
-                if not isinstance(parsed, dict) or ('Message' in parsed and 'Invalid' in str(parsed['Message'])):
-                    raise ProviderUnavailable('Unexpected or unauthorized sports provider response')
+                if not isinstance(parsed, dict):
+                    raise ProviderUnavailable('Unexpected sports provider response', 'invalid_response')
+                if any('invalid' in str(parsed.get(field, '')).lower() for field in ('Message', 'message', 'error')):
+                    raise ProviderUnavailable('Sports provider rejected the API key', 'authentication_failed')
                 if transport is None:
                     RAW_CACHE[cache_key] = (monotonic(), parsed)
                 return parsed
-            except (httpx.HTTPError, ValueError):
-                raise ProviderUnavailable('Sports provider request failed') from None
+            except httpx.TimeoutException:
+                raise ProviderUnavailable('Sports provider request timed out', 'timeout') from None
+            except httpx.HTTPError:
+                raise ProviderUnavailable('Sports provider network error', 'network_error') from None
+            except ValueError:
+                raise ProviderUnavailable('Sports provider returned non-JSON data', 'invalid_response') from None
 
         requests = []
         for src_day in source_days:
@@ -104,7 +194,13 @@ async def fetch_schedule(day: date, tz_name: str = 'America/Chicago', transport:
         raw = await asyncio.gather(*(r[3] for r in requests), return_exceptions=True)
         successes = [(req, result) for req, result in zip(requests, raw) if isinstance(result, dict)]
         if not any(req[0] == 'schedule' for req, _ in successes):
-            raise ProviderUnavailable('All sports schedule requests failed')
+            failed = [item for item in raw if isinstance(item, ProviderUnavailable)]
+            # Prioritize actionable provider errors, without echoing upstream URLs or keys.
+            codes = [item.code for item in failed]
+            priority = ('authentication_failed', 'rate_limited', 'request_rejected',
+                        'timeout', 'upstream_error', 'network_error', 'invalid_response')
+            code = next((value for value in priority if value in codes), 'upstream_unavailable')
+            raise ProviderUnavailable('All sports schedule requests failed', code)
         errors = len(requests) - len(successes)
         tv: dict[str, list[dict[str, Any]]] = {}
         schedule_rows: dict[str, dict[str, Any]] = {}
@@ -142,8 +238,43 @@ async def fetch_schedule(day: date, tz_name: str = 'America/Chicago', transport:
                     errors += 1
         # Bounded lookups enrich the main schedule when the truncated free daily
         # TV listing omitted events. Never infer broadcasters from rights deals.
+        # Coverage v0.4.4: previous builds selected only the first 16 IDs in
+        # lexicographic order, including games outside the requested US-local
+        # date. This starved the games users were actually looking at.
+        # Build the eligible queue from THIS day's supported sports, then
+        # round-robin sports while giving live/upcoming games priority.
         lookup_budget = _lookup_limit(is_free)
-        absent_tv_ids = sorted(set(schedule_rows) - set(tv))[:lookup_budget]
+        candidates_by_sport: dict[str, list[tuple[str, dict[str, Any]]]] = {name: [] for name in SPORTS}
+        for eid, row in schedule_rows.items():
+            if eid in tv:
+                continue
+            event = normalize_event(row)
+            if event and is_on_local_day(event, day, tz):
+                candidates_by_sport[event['sport']].append((eid, event))
+
+        def candidate_priority(item: tuple[str, dict[str, Any]]) -> tuple:
+            _eid, event = item
+            return (0 if event['status'] == 'live' else 1 if event['status'] == 'scheduled' else 2,
+                    event.get('startTime') or '9999', _eid)
+
+        for queue in candidates_by_sport.values():
+            queue.sort(key=candidate_priority)
+        eligible_tv_lookups = sum(map(len, candidates_by_sport.values()))
+        chosen: list[str] = []
+        while len(chosen) < lookup_budget:
+            added = False
+            for sport in SPORTS:
+                queue = candidates_by_sport[sport]
+                if queue and len(chosen) < lookup_budget:
+                    chosen.append(queue.pop(0)[0])
+                    added = True
+            if not added:
+                break
+        absent_tv_ids = chosen
+        tv_lookup_with_us = 0
+        tv_lookup_with_foreign_only = 0
+        tv_lookup_empty = 0
+        tv_lookup_failed = 0
         if absent_tv_ids:
             semaphore = asyncio.Semaphore(6)
             async def lookup(eid: str):
@@ -152,10 +283,20 @@ async def fetch_schedule(day: date, tz_name: str = 'America/Chicago', transport:
             responses = await asyncio.gather(*(lookup(eid) for eid in absent_tv_ids), return_exceptions=True)
             for eid, payload in zip(absent_tv_ids, responses):
                 if isinstance(payload, dict):
-                    for match, items in broadcast_rows(tv_records(payload)).items():
-                        if match == eid:
-                            merge_channels(tv.setdefault(eid, []), items)
+                    all_rows = tv_records(payload)
+                    us_rows = broadcast_rows(all_rows)
+                    listed = us_rows.get(eid, [])
+                    if listed:
+                        before = len(tv.get(eid, []))
+                        merge_channels(tv.setdefault(eid, []), listed)
+                        if len(tv[eid]) > before:
+                            tv_lookup_with_us += 1
+                    elif all_rows:
+                        tv_lookup_with_foreign_only += 1
+                    else:
+                        tv_lookup_empty += 1
                 else:
+                    tv_lookup_failed += 1
                     errors += 1
 
     # Optional licensed supplier file can add ONLY explicitly sourced TV listings
@@ -183,6 +324,10 @@ async def fetch_schedule(day: date, tz_name: str = 'America/Chicago', transport:
             'not necessarily untelevised. This guide is not exhaustive.')
     if is_free:
         note = 'Public preview key heavily limits daily event and TV results. ' + note
+    if eligible_tv_lookups > len(absent_tv_ids):
+        note += f' {eligible_tv_lookups - len(absent_tv_ids)} games not individually checked due to TV lookup budget.'
+    if tv_lookup_empty or tv_lookup_with_foreign_only:
+        note += f' {tv_lookup_empty + tv_lookup_with_foreign_only} event lookups returned no US listing.'
     if partner_matches:
         note += f' {partner_matches} additional channel listings from configured licensed supplier data.'
     if errors:
@@ -199,7 +344,12 @@ async def fetch_schedule(day: date, tz_name: str = 'America/Chicago', transport:
         'guideVersion': '0.3',
         'disclaimer': 'US source listings, not verified market availability, OTA reception, package carriage, or account entitlement.',
         'diagnostics': {'providerRequestFailures': errors, 'utcDaysQueried': len(source_days),
-                        'tvDetailLookups': len(absent_tv_ids), 'tvOrphanLookups': min(len(orphans), orphan_limit),
+                        'tvDetailLookups': len(absent_tv_ids), 'tvLookupEligible': eligible_tv_lookups,
+                        'tvLookupSkippedByBudget': eligible_tv_lookups - len(absent_tv_ids),
+                        'tvLookupWithUSListings': tv_lookup_with_us,
+                        'tvLookupOnlyNonUS': tv_lookup_with_foreign_only,
+                        'tvLookupNoListings': tv_lookup_empty, 'tvLookupFailed': tv_lookup_failed,
+                        'tvOrphanLookups': min(len(orphans), orphan_limit),
                         'freePreview': is_free, 'licensedMatches': partner_matches},
         'events': events,
     }
