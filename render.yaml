@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: sportslineup-api
+    runtime: python
+    plan: free
+    rootDir: Backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.6
+      - key: SPORTSDB_API_KEY
+        value: "123"
+      # Supplemental sources disabled until you explicitly approve exploratory use.
+      # Confirm permitted usage and distribution terms with each provider.
+      - key: SPORTSLINEUP_ENABLE_MLB
+        value: "false"
+      - key: SPORTSLINEUP_ENABLE_NHL
+        value: "false"
+      - key: SPORTSLINEUP_ENABLE_ESPN
+        value: "false"

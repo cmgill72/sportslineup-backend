@@ -1,0 +1,9 @@
+[
+  {
+    "providerEventId": "1234567",
+    "date": "2026-10-23",
+    "country": "US",
+    "channel": "Example Authorized Provider Channel",
+    "source": "REPLACE WITH LICENSED PROVIDER NAME"
+  }
+]
