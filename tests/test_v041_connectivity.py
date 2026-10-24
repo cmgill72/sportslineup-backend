@@ -22,7 +22,7 @@ class ConnectivityTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(response.status_code, 200)
         body = response.json()
         self.assertEqual(body['status'], 'ok')
-        self.assertEqual(body['version'], '0.7.0')
+        self.assertEqual(body['version'], '0.7.3')
         self.assertIn(body['sportsdbKeyMode'], ('public_preview', 'configured'))
         self.assertNotIn('SPORTSDB_API_KEY', body)
 

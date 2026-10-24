@@ -204,7 +204,7 @@ def merge_channels(existing: list[dict[str, Any]], incoming: list[dict[str, Any]
             saved['sources'] = list(dict.fromkeys(evidence + extra))
             # Retain event-specific market/evidence details from a verified
             # source even when the channel name already came from another feed.
-            for field in ('marketScope', 'evidenceURL', 'verifiedOn'):
+            for field in ('marketScope', 'evidenceURL', 'verifiedOn', 'listingAuthority'):
                 if row.get(field) and not saved.get(field):
                     saved[field] = row[field]
         else:

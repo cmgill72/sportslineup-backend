@@ -9,7 +9,7 @@ def test_health_v07_and_no_key_leak(monkeypatch):
     resp = TestClient(app).get('/health')
     assert resp.status_code == 200
     body = resp.json()
-    assert body['version'] == '0.7.0'
+    assert body['version'] == '0.7.3'
     assert body['liveScoresEnabled'] is True
     assert 'private-example' not in str(body)
 

@@ -84,5 +84,77 @@
         "verifiedOn": "2026-10-23"
       }
     ]
+  },
+  {
+    "date": "2026-10-24",
+    "sport": "ncaa_football",
+    "matchup": [
+      "LSU",
+      "Auburn"
+    ],
+    "utcStart": "2026-10-24T16:00:00Z",
+    "broadcasts": [
+      {
+        "channel": "ABC",
+        "marketScope": "national_affiliate",
+        "source": "ABC (official published schedule)",
+        "evidenceURL": "https://abc.com/news/1955a242-157c-4a73-8942-eaa7ac4f8244/category/1138628",
+        "verifiedOn": "2026-10-24"
+      }
+    ]
+  },
+  {
+    "date": "2026-10-24",
+    "sport": "ncaa_football",
+    "matchup": [
+      "Texas A&M",
+      "Alabama"
+    ],
+    "utcStart": "2026-10-24T19:30:00Z",
+    "broadcasts": [
+      {
+        "channel": "ABC",
+        "marketScope": "national_affiliate",
+        "source": "ABC (official published schedule)",
+        "evidenceURL": "https://abc.com/news/1955a242-157c-4a73-8942-eaa7ac4f8244/category/1138628",
+        "verifiedOn": "2026-10-24"
+      }
+    ]
+  },
+  {
+    "date": "2026-10-24",
+    "sport": "ncaa_football",
+    "matchup": [
+      "Ole Miss",
+      "Texas"
+    ],
+    "utcStart": "2026-10-24T23:30:00Z",
+    "broadcasts": [
+      {
+        "channel": "ABC",
+        "marketScope": "national_affiliate",
+        "source": "ABC (official published schedule)",
+        "evidenceURL": "https://abc.com/news/1955a242-157c-4a73-8942-eaa7ac4f8244/category/1138628",
+        "verifiedOn": "2026-10-24"
+      }
+    ]
+  },
+  {
+    "date": "2026-10-31",
+    "sport": "ncaa_football",
+    "matchup": [
+      "Florida",
+      "Georgia"
+    ],
+    "utcStart": "2026-10-31T19:30:00Z",
+    "broadcasts": [
+      {
+        "channel": "ABC",
+        "marketScope": "national_affiliate",
+        "source": "ABC (official published schedule)",
+        "evidenceURL": "https://abc.com/news/1955a242-157c-4a73-8942-eaa7ac4f8244/category/1138628",
+        "verifiedOn": "2026-10-24"
+      }
+    ]
   }
 ]

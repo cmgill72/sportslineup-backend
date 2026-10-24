@@ -12,7 +12,7 @@ from .supplemental import enabled_providers
 from .gracenote import enabled as gracenote_enabled, configured as gracenote_configured, lineups_for_zip, GracenoteUnavailable, ZIP_RE
 from os import getenv
 
-app = FastAPI(title='SportsLineup API', version='0.7.0')
+app = FastAPI(title='SportsLineup API', version='0.7.3')
 CACHE: dict[str, tuple[float, dict]] = {}
 CACHE_SECONDS = 600
 STALE_MAX_SECONDS = 7200
@@ -20,7 +20,7 @@ STALE_MAX_SECONDS = 7200
 
 @app.get('/health')
 async def health():
-    return {'status': 'ok', 'app': 'SportsLineup', 'version': '0.7.0',
+    return {'status': 'ok', 'app': 'SportsLineup', 'version': '0.7.3',
             'supplementalProvidersEnabled': enabled_providers(),
             'sportsdbKeyMode': credential_mode(),
             'sportsdbKeyConfigured': credential_mode() == 'configured',
@@ -54,7 +54,7 @@ async def sports():
 
 @app.get('/v1/providers')
 async def providers():
-    return {'version': '0.7.0', 'enabled': ['TheSportsDB'] + (['Gracenote (licensed)'] if gracenote_enabled() and gracenote_configured() else []) + enabled_providers() + (['Authorized Event Feed'] if getenv('SPORTSLINEUP_AUTHORIZED_EVENTS_PATH') else []),
+    return {'version': '0.7.3', 'enabled': ['TheSportsDB'] + (['Gracenote (licensed)'] if gracenote_enabled() and gracenote_configured() else []) + enabled_providers() + (['Authorized Event Feed'] if getenv('SPORTSLINEUP_AUTHORIZED_EVENTS_PATH') else []),
             'note': 'Gracenote requires a licensed contract and selected local TV lineup. Extra publicly reachable sports feeds are opt-in research connectors. Verify API rights before distribution; no source certifies subscriber-specific viewing eligibility.'}
 
 
