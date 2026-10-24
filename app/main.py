@@ -10,7 +10,7 @@ from .provider import ProviderUnavailable, credential_mode, probe_provider
 from .supplemental import enabled_providers
 from os import getenv
 
-app = FastAPI(title='SportsLineup API', version='0.4.4')
+app = FastAPI(title='SportsLineup API', version='0.5.0')
 CACHE: dict[str, tuple[float, dict]] = {}
 CACHE_SECONDS = 600
 STALE_MAX_SECONDS = 7200
@@ -18,7 +18,7 @@ STALE_MAX_SECONDS = 7200
 
 @app.get('/health')
 async def health():
-    return {'status': 'ok', 'app': 'SportsLineup', 'version': '0.4.4',
+    return {'status': 'ok', 'app': 'SportsLineup', 'version': '0.5.0',
             'supplementalProvidersEnabled': enabled_providers(),
             'sportsdbKeyMode': credential_mode(),
             'sportsdbKeyConfigured': credential_mode() == 'configured',
@@ -38,7 +38,7 @@ async def sports():
 
 @app.get('/v1/providers')
 async def providers():
-    return {'version': '0.4.4', 'enabled': ['TheSportsDB'] + enabled_providers() + (['Authorized Event Feed'] if getenv('SPORTSLINEUP_AUTHORIZED_EVENTS_PATH') else []),
+    return {'version': '0.5.0', 'enabled': ['TheSportsDB'] + enabled_providers() + (['Authorized Event Feed'] if getenv('SPORTSLINEUP_AUTHORIZED_EVENTS_PATH') else []),
             'note': 'Extra publicly reachable sports feeds are opt-in research connectors. Verify API rights before distribution; no source certifies subscriber-specific viewing eligibility.'}
 
 
@@ -66,6 +66,10 @@ async def schedule(day: date | None = Query(default=None, alias='date'),
             snapshot = dict(cached[1])
             snapshot['stale'] = True
             snapshot['partial'] = True
+            if isinstance(snapshot.get('quality'), dict):
+                snapshot['quality'] = dict(snapshot['quality'])
+                snapshot['quality']['warnings'] = list(snapshot['quality'].get('warnings') or []) + [
+                    'Showing cached data after provider refresh failure; verify all broadcasts.']
             snapshot['coverage_note'] = ('LAST KNOWN DATA — provider refresh failed; '
                                          f'data is {int(age // 60)} minutes old. ' + snapshot.get('coverage_note', ''))
             return snapshot
@@ -98,12 +102,25 @@ async def broadcast_diagnostics(day: date | None = Query(default=None, alias='da
         'fetchedAt': guide_data.get('fetchedAt'), 'stale': guide_data.get('stale', False),
         'coverage': guide_data.get('coverage'),
         'sourceHealth': guide_data.get('sourceHealth', []),
+        'quality': guide_data.get('quality', {}),
         'tvLookupSummary': {key: diagnostics.get(key, 0) for key in (
             'tvDetailLookups', 'tvLookupEligible', 'tvLookupSkippedByBudget',
             'tvLookupWithUSListings', 'tvLookupOnlyNonUS',
             'tvLookupNoListings', 'tvLookupFailed', 'providerRequestFailures')},
         'explanation': 'No US broadcast listing is not proof that a game is untelevised. Verify through an authorized broadcast source.',
     }
+
+
+@app.get('/v1/coverage/gaps')
+async def coverage_gaps(day: date | None = Query(default=None, alias='date'),
+                        tz: str = Query(default='America/Chicago', min_length=3, max_length=64)):
+    """Return actual reported gaps; never guess broadcaster assignments."""
+    data = await schedule(day=day, tz=tz)
+    quality = dict(data.get('quality') or {})
+    quality.update({'date': data.get('date'), 'timezone': data.get('timezone'),
+                    'fetchedAt': data.get('fetchedAt'), 'stale': data.get('stale', False),
+                    'sourceHealth': data.get('sourceHealth', [])})
+    return quality
 
 
 @app.get('/v1/guide')

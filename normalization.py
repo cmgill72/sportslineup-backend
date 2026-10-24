@@ -143,12 +143,31 @@ def normalize_event(raw: dict[str, Any], broadcasts: dict[str, list[dict[str, An
 
 
 def merge_channels(existing: list[dict[str, Any]], incoming: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    seen = {r['channel'].casefold() for r in existing}
+    """Preserve independent listing evidence instead of discarding it on de-dup.
+
+    Matching is deliberately conservative: punctuation such as '+' remains part
+    of a network name (ESPN and ESPN+ are NOT the same broadcaster). The number
+    of named providers is not a claim of entitlement or local availability.
+    """
+    def key(channel: str) -> str:
+        return ' '.join(str(channel).casefold().split())
+
+    indexed = {key(row.get('channel','')): row for row in existing}
     for row in incoming:
-        key = row['channel'].casefold()
-        if key not in seen:
-            existing.append(row)
-            seen.add(key)
+        channel_key = key(row.get('channel',''))
+        if not channel_key:
+            continue
+        source = str(row.get('source') or '').strip()
+        if channel_key in indexed:
+            saved = indexed[channel_key]
+            evidence = list(saved.get('sources') or ([saved['source']] if saved.get('source') else []))
+            extra = list(row.get('sources') or ([source] if source else []))
+            saved['sources'] = list(dict.fromkeys(evidence + extra))
+        else:
+            copy = dict(row)
+            copy['sources'] = list(dict.fromkeys(row.get('sources') or ([source] if source else [])))
+            existing.append(copy)
+            indexed[channel_key] = copy
     return existing
 
 

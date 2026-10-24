@@ -62,6 +62,9 @@ def annotate_broadcast(row: dict[str, Any]) -> dict[str, Any]:
     enriched = dict(row)
     enriched.update(classify_channel(str(row.get('channel') or '')))
     enriched['availability'] = 'unverified_for_viewer'
+    sources = row.get('sources') or ([row['source']] if row.get('source') else [])
+    enriched['sources'] = list(dict.fromkeys(str(s) for s in sources if s))
+    enriched['evidenceCount'] = len(enriched['sources'])
     # 'confirmed' from another provider would misleadingly suggest personal access:
     # preserve reported provenance but never promote it to guaranteed access.
     return enriched

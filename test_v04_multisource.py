@@ -155,7 +155,7 @@ class AggregationTests(unittest.TestCase):
             result=asyncio.run(fetch_schedule(DAY,'America/Chicago'))
         self.assertEqual(len(result['events']),1)
         self.assertTrue(result['partial'])
-        self.assertEqual(result['guideVersion'],'0.4')
+        self.assertEqual(result['guideVersion'],'0.5')
         self.assertEqual(result['diagnostics']['providerRequestFailures'],1)
         self.assertEqual(result['sourceHealth'][0]['status'],'failed')
         self.assertEqual(result['events'][0]['broadcastStatus'],'not_listed_by_provider')

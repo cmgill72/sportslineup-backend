@@ -92,6 +92,29 @@ def parse_mlb(payload: dict[str, Any], day: date, tz: str) -> list[dict[str, Any
     return result
 
 
+def _nhl_tv_broadcasts(game: dict[str, Any]) -> list[dict[str, Any]]:
+    """Use only actual US network names on this exact NHL game record.
+
+    For example the NHL game feed may contain tvBroadcasts with countryCode,
+    network and market. We must not interpret Canadian/international channels
+    as US options, or a regional broadcast as available to every ZIP code.
+    """
+    result: list[dict[str, Any]] = []
+    for item in game.get('tvBroadcasts', []) if isinstance(game.get('tvBroadcasts'), list) else []:
+        if not isinstance(item, dict): continue
+        if str(item.get('countryCode') or '').upper() != 'US': continue
+        network = str(item.get('network') or '').strip()
+        if not network or len(network) > 90 or any(r['channel'].casefold() == network.casefold() for r in result):
+            continue
+        result.append({
+            'id': f"nhl-tv-{game.get('id')}-{len(result)}", 'channel': network,
+            'type': 'source_listing', 'confidence': 'provider_listed',
+            'source': 'NHL (opt-in)', 'country': 'US', 'url': None,
+            'marketScope': str(item.get('market') or 'unspecified'),
+        })
+    return result
+
+
 def parse_nhl(payload: dict[str, Any], day: date, tz: str) -> list[dict[str, Any]]:
     zone = ZoneInfo(tz)
     result = []
@@ -110,7 +133,8 @@ def parse_nhl(payload: dict[str, Any], day: date, tz: str) -> list[dict[str, Any
             state = str(game.get('gameState') or '').upper()
             status = 'final' if state in ('FINAL','OFF') else 'live' if state in ('LIVE','CRIT') else 'scheduled'
             item = _event('nhl', game.get('id'), 'nhl', 'NHL', f'{away} at {home}', start,
-                          status=status, participants=[away, home], source_date=block.get('date'))
+                          status=status, participants=[away, home], source_date=block.get('date'),
+                          broadcasts=_nhl_tv_broadcasts(game))
             if item: result.append(item)
     return result
 

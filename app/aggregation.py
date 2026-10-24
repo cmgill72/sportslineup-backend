@@ -9,6 +9,7 @@ from .reconciliation import reconcile
 from .authorized_events import authorized_events
 from .broadcast_intelligence import annotate_events, distribution_summary
 from .normalization import coverage_breakdown
+from .quality import quality_report
 
 
 async def fetch_schedule(day: date, tz: str) -> dict[str, Any]:
@@ -65,4 +66,6 @@ async def fetch_schedule(day: date, tz: str) -> dict[str, Any]:
     diagnostics['authorizedEventFeedEnabled'] = licensed_health is not None
     diagnostics['supplementalFailures'] = failures
     data['diagnostics'] = diagnostics
+    data['quality'] = quality_report(merged, status, diagnostics)
+    data['guideVersion'] = '0.5'
     return data
