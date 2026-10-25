@@ -128,7 +128,10 @@ def normalize_status(value: Any) -> str:
 
 
 def _completed_result(raw: dict[str, Any], status: str) -> dict[str, Any] | None:
-    if status != 'final':
+    # When the schedule provider includes both scores for an explicitly live
+    # game, show them immediately; the separate premium feed is not required.
+    # Unknown/upcoming statuses must never turn placeholder 0-0 into a score.
+    if status not in ('live', 'final'):
         return None
     def parse(value):
         if isinstance(value, bool) or value is None or str(value).strip() == '':
@@ -139,8 +142,9 @@ def _completed_result(raw: dict[str, Any], status: str) -> dict[str, Any] | None
     away = parse(raw.get('intAwayScore'))
     if home is None or away is None:
         return None
-    return {'home': home, 'away': away, 'progress': 'Final', 'state': 'final',
-            'source': 'TheSportsDB final event record',
+    progress = str(raw.get('strProgress') or raw.get('strStatus') or ('Final' if status == 'final' else 'Live')).strip()[:70]
+    return {'home': home, 'away': away, 'progress': progress if status == 'live' else 'Final',
+            'state': status, 'source': 'TheSportsDB event schedule',
             'homeTeam': str(raw.get('strHomeTeam') or '').strip() or None,
             'awayTeam': str(raw.get('strAwayTeam') or '').strip() or None}
 

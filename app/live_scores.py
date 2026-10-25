@@ -97,8 +97,17 @@ def attach_scores(events: list[dict[str, Any]], scores: dict[str, dict[str, Any]
         participants = [re.sub(r'[^a-z0-9]', '', p.casefold()) for p in event.get('_participants', []) if p]
         # When schedule contains both teams, verify names from the score feed.
         if len(participants) == 2 and record.get('homeTeam') and record.get('awayTeam'):
-            expected = {re.sub(r'[^a-z0-9]', '', name.casefold()) for name in (record['homeTeam'], record['awayTeam'])}
-            if set(participants) != expected:
+            # Exact provider ID is mandatory, and each side must match. Providers
+            # sometimes use 'Spurs' versus 'San Antonio Spurs'. Accept only
+            # exact full names or a full final nickname word (>= 4 characters),
+            # not generic substrings; keep home/away orientation intact.
+            def same_team(a: str, b: str) -> bool:
+                aw = re.findall(r'[a-z0-9]+', a.casefold())
+                bw = re.findall(r'[a-z0-9]+', b.casefold())
+                if aw == bw: return True
+                return bool(aw and bw and aw[-1] == bw[-1] and len(aw[-1]) >= 4)
+            if not (same_team(event['_participants'][0], record['awayTeam']) and
+                    same_team(event['_participants'][1], record['homeTeam'])):
                 continue
         event['score'] = {k: record[k] for k in ('home','away','progress','state','source')}
         event['score']['homeTeam'] = record.get('homeTeam') or None
@@ -135,7 +144,7 @@ async def fetch_livescores(transport: httpx.AsyncBaseTransport | None = None) ->
             if response.status_code != 200:
                 return {}, {'status': 'upstream_error', 'matched': 0}
             scores = score_map(response.json())
-            result = {'scores': scores, 'health': {'status': 'ok', 'feedRecords': len(scores)}}
+            result = {'scores': scores, 'health': {'status': 'ok', 'feedRecords': len(scores), 'note': 'A game must be represented in the premium score feed and match a TheSportsDB event ID.'}}
             if transport is None:
                 CACHE = (monotonic(), result)
             return scores, result['health']

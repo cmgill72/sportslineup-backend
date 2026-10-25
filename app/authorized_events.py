@@ -31,6 +31,14 @@ def authorized_events(day: date, tz: str) -> tuple[list[dict[str, Any]], dict | 
         return [], status
     if not isinstance(raw, list):
         return [], status
+    result = parse_authorized_rows(raw, day, tz)
+    status['status'] = 'ok' if result else 'empty'
+    status['events'] = len(result)
+    return result, status
+
+
+def parse_authorized_rows(raw: list, day: date, tz: str) -> list[dict[str, Any]]:
+    """Shared strict normalizer for locally licensed and remote HTTPS feed rows."""
     result = []
     zone = ZoneInfo(tz)
     for row in raw[:10000]:
@@ -63,6 +71,4 @@ def authorized_events(day: date, tz: str) -> tuple[list[dict[str, Any]], dict | 
         if event:
             event['scheduleSources'] = [source]
             result.append(event)
-    status['status'] = 'ok' if result else 'empty'
-    status['events'] = len(result)
-    return result, status
+    return result

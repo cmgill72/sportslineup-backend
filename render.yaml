@@ -45,3 +45,28 @@ services:
       # Optional managed HTTPS JSON manifest URL for updates after launch.
       - key: SPORTSLINEUP_NETWORK_LOGO_MANIFEST_URL
         sync: false
+
+      # Optional contracted TV/streaming data across all eight sport categories.
+      - key: SPORTSLINEUP_AUTHORIZED_FEED_URL
+        sync: false
+      - key: SPORTSLINEUP_AUTHORIZED_FEED_TOKEN
+        sync: false
+
+      # Background push OFF until paid always-on Render, persistent disk and Apple
+      # APNs key + Push Notifications capability are configured.
+      - key: SPORTSLINEUP_PUSH_ENABLED
+        value: "false"
+      - key: SPORTSLINEUP_PUSH_WORKER_ENABLED
+        value: "false"
+      - key: SPORTSLINEUP_PUSH_DB_PATH
+        sync: false
+      - key: SPORTSLINEUP_APNS_TEAM_ID
+        sync: false
+      - key: SPORTSLINEUP_APNS_KEY_ID
+        sync: false
+      - key: SPORTSLINEUP_APNS_PRIVATE_KEY
+        sync: false
+      - key: SPORTSLINEUP_APNS_BUNDLE_ID
+        sync: false
+      - key: SPORTSLINEUP_APNS_ENV
+        value: "sandbox"

@@ -4,6 +4,10 @@ from datetime import date, datetime
 from time import monotonic
 from zoneinfo import ZoneInfo
 from fastapi import FastAPI, HTTPException, Query
+from pydantic import BaseModel, Field
+from . import push_delivery
+from contextlib import asynccontextmanager
+import asyncio
 from .normalization import SPORTS
 from .live_scores import premium_enabled, allow_team_badges, fetch_livescores
 from .team_badges import badge_lookup
@@ -14,7 +18,18 @@ from .gracenote import enabled as gracenote_enabled, configured as gracenote_con
 from os import getenv
 from .network_logos import catalog_response, resolve_network_name
 
-app = FastAPI(title='SportsLineup API', version='0.7.7')
+@asynccontextmanager
+async def push_lifespan(app: FastAPI):
+    worker = None
+    if push_delivery.configured() and getenv('SPORTSLINEUP_PUSH_WORKER_ENABLED','false').lower() == 'true':
+        worker = asyncio.create_task(push_delivery.worker_loop())
+    yield
+    if worker:
+        worker.cancel()
+        try: await worker
+        except asyncio.CancelledError: pass
+
+app = FastAPI(title='SportsLineup API', version='0.8.2', lifespan=push_lifespan)
 CACHE: dict[str, tuple[float, dict]] = {}
 CACHE_SECONDS = 600
 STALE_MAX_SECONDS = 7200
@@ -22,11 +37,11 @@ STALE_MAX_SECONDS = 7200
 
 @app.get('/health')
 async def health():
-    return {'status': 'ok', 'app': 'SportsLineup', 'version': '0.7.7',
+    return {'status': 'ok', 'app': 'SportsLineup', 'version': '0.8.2',
             'supplementalProvidersEnabled': enabled_providers(),
             'sportsdbKeyMode': credential_mode(),
             'sportsdbKeyConfigured': credential_mode() == 'configured',
-            'authorizedEventFeedConfigured': bool(getenv('SPORTSLINEUP_AUTHORIZED_EVENTS_PATH')),
+            'authorizedEventFeedConfigured': bool(getenv('SPORTSLINEUP_AUTHORIZED_EVENTS_PATH') or getenv('SPORTSLINEUP_AUTHORIZED_FEED_URL')),
             'liveScoresEnabled': premium_enabled(), 'teamBadgesEnabled': allow_team_badges(),
             'gracenoteEnabled': gracenote_enabled(), 'gracenoteKeyConfigured': gracenote_configured()}
 
@@ -49,6 +64,21 @@ async def scores():
                        for event_id, row in values.items()]}
 
 
+@app.get('/v1/diagnostics/scores')
+async def diagnostics_scores():
+    # Explicitly distinguishes a running provider from one supplying no live games.
+    rows, health = await fetch_livescores()
+    return {
+        'version': '0.8.2',
+        'enabled': premium_enabled(),
+        'status': health.get('status', 'unknown'),
+        'feedRecords': len(rows),
+        'note': ('No matching live score is not a zero score. TheSportsDB does not '
+                 'guarantee every NCAA/PGA/UFC event in the premium livescore feed.'),
+        'exampleEventIds': list(rows.keys())[:5],
+    }
+
+
 @app.get('/v1/diagnostics/provider')
 async def provider_diagnostics():
     # One cached request against TheSportsDB. Status and HTTP code only; never the API key.
@@ -62,7 +92,7 @@ async def artwork_status():
     catalog = await catalog_response()
     entries = catalog.get('networks', [])
     return {
-        'version': '0.7.7',
+        'version': '0.8.2',
         'teamBadgesEnabled': allow_team_badges(),
         'teamBadgesReason': ('enabled; individual badges depend on TheSportsDB artwork' if allow_team_badges()
                              else 'disabled_on_render; set SPORTSLINEUP_ENABLE_TEAM_BADGES=true if rights allow'),
@@ -81,6 +111,79 @@ async def network_logo_library():
     from fastapi.responses import JSONResponse
     return JSONResponse(content=await catalog_response(),headers={'Cache-Control':'public, max-age=3600'})
 
+
+@app.get('/v1/diagnostics/network-images')
+async def diagnostics_network_images(probe: bool = False):
+    """Reports configured artwork and optionally tests real upstream image responses.
+
+    The probe only accesses approved catalog URLs. It never trusts a user-supplied URL.
+    It is limited to seven requests in a single diagnostic run and isn't part of
+    normal lineup traffic. This is a diagnostic, not proof of image usage rights.
+    """
+    catalog = await catalog_response()
+    items = catalog.get('networks', [])
+    results = [{'name': item['name'], 'imageConfigured': bool(item.get('imageURL')),
+                'fallback': not bool(item.get('imageURL'))} for item in items]
+    if probe:
+        import asyncio
+        import httpx
+        # Bounded by a strict curated allowlist in the catalog validator.
+        images = [(i, item['imageURL']) for i, item in enumerate(items) if item.get('imageURL')][:7]
+        async with httpx.AsyncClient(timeout=httpx.Timeout(6, connect=3), follow_redirects=False) as client:
+            async def check(i, url):
+                try:
+                    async with client.stream('GET', url,
+                                             headers={'Accept': 'image/png,image/jpeg,image/webp'}) as response:
+                        content_type = response.headers.get('content-type','').lower()
+                        results[i]['httpStatus'] = response.status_code
+                        results[i]['imageUsable'] = (response.status_code == 200 and content_type.startswith('image/'))
+                except httpx.HTTPError:
+                    results[i]['imageUsable'] = False
+                    results[i]['error'] = 'upstream_unreachable'
+            await asyncio.gather(*(check(i,url) for i,url in images))
+    return {'version': '0.8.2', 'mode': catalog.get('mode'), 'networks': results,
+            'remoteImagesVerified': probe,
+            'note': 'Probe checks image HTTP responses, not artwork rights. Missing/failed images use text badges.'}
+
+
+class DeviceRegistration(BaseModel):
+    installationId: str = Field(min_length=20,max_length=64)
+    installationKey: str = Field(min_length=64,max_length=64)
+    apnsToken: str = Field(min_length=32,max_length=400)
+
+class AlertSubscription(BaseModel):
+    installationId: str
+    installationKey: str
+    eventId: str
+    title: str
+    sport: str
+    expires: int
+    alerts: dict[str,bool]
+    activityToken: str | None = None
+
+@app.get('/v1/push/status')
+async def push_status():
+    return {'configured':push_delivery.configured(),
+            'workerEnabled':getenv('SPORTSLINEUP_PUSH_WORKER_ENABLED','false').lower()=='true',
+            'mode':'APNs token delivery; requires always-on Render with persistent disk',
+            'liveActivityRequires':'Widget extension, ActivityKit permission, APNs signing and active score feed'}
+
+@app.post('/v1/push/register')
+async def push_register(body:DeviceRegistration):
+    if not push_delivery.configured(): raise HTTPException(status_code=503,detail='Push not configured on backend')
+    if not push_delivery.register_device(body.installationId,body.installationKey,body.apnsToken):
+        raise HTTPException(status_code=400,detail='Device registration rejected')
+    return {'status':'registered'}
+
+@app.post('/v1/push/subscribe')
+async def push_subscribe(body:AlertSubscription):
+    if not push_delivery.configured(): raise HTTPException(status_code=503,detail='Push not configured on backend')
+    if not push_delivery.subscribe(body.installationId,body.installationKey,body.eventId,body.title,
+                                 body.sport,body.expires,body.alerts,body.activityToken):
+        raise HTTPException(status_code=400,detail='Subscription rejected; register device and confirm permissions')
+    return {'status':'saved'}
+
+
 @app.get('/v1/sports')
 async def sports():
     return {'sports': SPORTS}
@@ -88,7 +191,7 @@ async def sports():
 
 @app.get('/v1/providers')
 async def providers():
-    return {'version': '0.7.7', 'enabled': ['TheSportsDB'] + (['Gracenote (licensed)'] if gracenote_enabled() and gracenote_configured() else []) + enabled_providers() + (['Authorized Event Feed'] if getenv('SPORTSLINEUP_AUTHORIZED_EVENTS_PATH') else []),
+    return {'version': '0.8.2', 'enabled': ['TheSportsDB'] + (['Gracenote (licensed)'] if gracenote_enabled() and gracenote_configured() else []) + enabled_providers() + (['Authorized Event Feed'] if getenv('SPORTSLINEUP_AUTHORIZED_EVENTS_PATH') else []),
             'note': 'Gracenote requires a licensed contract and selected local TV lineup. Extra publicly reachable sports feeds are opt-in research connectors. Verify API rights before distribution; no source certifies subscriber-specific viewing eligibility.'}
 
 
