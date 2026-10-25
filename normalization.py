@@ -9,7 +9,7 @@ import re
 from typing import Any
 from zoneinfo import ZoneInfo
 
-SPORTS = ('nba', 'mlb', 'ncaa_football', 'ncaa_basketball', 'nhl', 'pga', 'wnba', 'ufc')
+SPORTS = ('nfl', 'nba', 'mlb', 'ncaa_football', 'ncaa_basketball', 'nhl', 'pga', 'wnba', 'ufc')
 COLLEGE_TERMS = ('ncaa', 'college', 'division i', 'ncaab', 'ncaaf', 'big ten', 'big 12', 'sec ', 'acc ', 'pac-12', 'pac-10', 'mountain west', 'atlantic 10', 'big east', 'american athletic', 'sun belt', 'conference usa')
 US_NAMES = {'united states', 'united states of america', 'usa', 'us', 'u s a'}
 
@@ -28,8 +28,15 @@ def classify(raw: dict[str, Any]) -> str | None:
             return 'nba'
     if 'baseball' in sport and any(k in combined for k in ('mlb', 'major league baseball', 'world series')):
         return 'mlb'
-    if ('american football' in sport or sport == 'football') and any(k in combined for k in COLLEGE_TERMS):
-        return 'ncaa_football'
+    if 'american football' in sport or sport == 'football':
+        # College must win over loose words like 'football'. Never turn the CFL,
+        # UFL or any other professional league into the NFL by sport alone.
+        if any(k in combined for k in COLLEGE_TERMS):
+            return 'ncaa_football'
+        if (str(raw.get('idLeague') or '').strip() == '4391'
+                or league in {'nfl', 'national football league'}
+                or league.startswith('nfl ')):
+            return 'nfl'
     if ('ice hockey' in sport or sport == 'hockey') and ('nhl' in combined or 'national hockey league' in combined):
         return 'nhl'
     if 'golf' in sport and any(k in combined for k in ('pga', 'fedexcup', 'fedex cup', 'the players championship')):
@@ -121,7 +128,7 @@ def normalize_status(value: Any) -> str:
                  'HT', 'HALF TIME', 'HALFTIME', 'INTERMISSION', 'OT', 'OVERTIME',
                  'Q1', 'Q2', 'Q3', 'Q4', '1H', '2H', '1ST', '2ND', '3RD'}:
         return 'live'
-    if re.fullmatch(r'(?:1ST|2ND|3RD|4TH) (?:HALF|QUARTER|PERIOD)', state):
+    if re.fullmatch(r'(?:1ST|2ND|3RD|4TH) (?:HALF|QUARTER|PERIOD)', state) or re.fullmatch(r'Q[1-4] \d{1,2}:\d{2}', state):
         return 'live'
     # NS / TBD / SCHEDULED / blank / unknown / malformed status -> never LIVE.
     return 'scheduled'

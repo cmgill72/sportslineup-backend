@@ -76,7 +76,7 @@ async def fetch_schedule(day: date, tz: str, zip_code: str = "", lineup_id: str 
         'fetchedAt': datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace('+00:00','Z'),
         'source': ' + '.join(dict.fromkeys(source_names)),
         'events': merged, 'partial': True, 'coverage_note': note,
-        'guideVersion': '0.8.2', 'coverage': coverage,
+        'guideVersion': '0.8.3', 'coverage': coverage,
         'distributionCoverage': distribution_summary(merged),
         'disclaimer': 'Provider-reported broadcast names only. Market coverage, rights, regional blocks, antenna reception, subscription eligibility and local game feeds are unverified.',
         'sourceHealth': status, 'reconciliation': reconciliation, 'stale': False,
@@ -93,7 +93,7 @@ async def fetch_schedule(day: date, tz: str, zip_code: str = "", lineup_id: str 
     diagnostics['supplementalFailures'] = failures
     data['diagnostics'] = diagnostics
     data['quality'] = quality_report(merged, status, diagnostics)
-    data['guideVersion'] = '0.8.2'
+    data['guideVersion'] = '0.8.3'
     data['scoreCoverage'] = {'status': score_health['status'], 'feedRecords': score_health.get('feedRecords', 0),
                              'matchedEvents': sum(bool(event.get('score')) for event in merged), 'source': 'TheSportsDB event scores + V2 live feed',
                              'teamBadgesEnabled': allow_team_badges()}

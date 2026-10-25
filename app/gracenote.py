@@ -113,6 +113,7 @@ def _sport(program: dict) -> str | None:
     if re.search(r'\bnba\b|national basketball association', value): return 'nba'
     if re.search(r'\bcollege basketball\b|\bncaa basketball\b|\bncaab\b|\bmen.s basketball\b|\bwomen.s basketball\b', value): return 'ncaa_basketball'
     if re.search(r'\bcollege football\b|\bncaa football\b|\bncaaf\b', value): return 'ncaa_football'
+    if re.search(r'\bnfl\b|national football league', value): return 'nfl'
     if re.search(r'\bmajor league baseball\b|\bmlb\b', value): return 'mlb'
     if re.search(r'\bnhl\b|national hockey league', value): return 'nhl'
     if re.search(r'\bpga (?:tour|championship)\b|\bpga tour\b', value): return 'pga'

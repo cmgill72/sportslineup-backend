@@ -29,7 +29,7 @@ async def push_lifespan(app: FastAPI):
         try: await worker
         except asyncio.CancelledError: pass
 
-app = FastAPI(title='SportsLineup API', version='0.8.2', lifespan=push_lifespan)
+app = FastAPI(title='SportsLineup API', version='0.8.3', lifespan=push_lifespan)
 CACHE: dict[str, tuple[float, dict]] = {}
 CACHE_SECONDS = 600
 STALE_MAX_SECONDS = 7200
@@ -37,7 +37,7 @@ STALE_MAX_SECONDS = 7200
 
 @app.get('/health')
 async def health():
-    return {'status': 'ok', 'app': 'SportsLineup', 'version': '0.8.2',
+    return {'status': 'ok', 'app': 'SportsLineup', 'version': '0.8.3',
             'supplementalProvidersEnabled': enabled_providers(),
             'sportsdbKeyMode': credential_mode(),
             'sportsdbKeyConfigured': credential_mode() == 'configured',
@@ -69,7 +69,7 @@ async def diagnostics_scores():
     # Explicitly distinguishes a running provider from one supplying no live games.
     rows, health = await fetch_livescores()
     return {
-        'version': '0.8.2',
+        'version': '0.8.3',
         'enabled': premium_enabled(),
         'status': health.get('status', 'unknown'),
         'feedRecords': len(rows),
@@ -92,7 +92,7 @@ async def artwork_status():
     catalog = await catalog_response()
     entries = catalog.get('networks', [])
     return {
-        'version': '0.8.2',
+        'version': '0.8.3',
         'teamBadgesEnabled': allow_team_badges(),
         'teamBadgesReason': ('enabled; individual badges depend on TheSportsDB artwork' if allow_team_badges()
                              else 'disabled_on_render; set SPORTSLINEUP_ENABLE_TEAM_BADGES=true if rights allow'),
@@ -141,7 +141,7 @@ async def diagnostics_network_images(probe: bool = False):
                     results[i]['imageUsable'] = False
                     results[i]['error'] = 'upstream_unreachable'
             await asyncio.gather(*(check(i,url) for i,url in images))
-    return {'version': '0.8.2', 'mode': catalog.get('mode'), 'networks': results,
+    return {'version': '0.8.3', 'mode': catalog.get('mode'), 'networks': results,
             'remoteImagesVerified': probe,
             'note': 'Probe checks image HTTP responses, not artwork rights. Missing/failed images use text badges.'}
 
@@ -191,7 +191,7 @@ async def sports():
 
 @app.get('/v1/providers')
 async def providers():
-    return {'version': '0.8.2', 'enabled': ['TheSportsDB'] + (['Gracenote (licensed)'] if gracenote_enabled() and gracenote_configured() else []) + enabled_providers() + (['Authorized Event Feed'] if getenv('SPORTSLINEUP_AUTHORIZED_EVENTS_PATH') else []),
+    return {'version': '0.8.3', 'enabled': ['TheSportsDB'] + (['Gracenote (licensed)'] if gracenote_enabled() and gracenote_configured() else []) + enabled_providers() + (['Authorized Event Feed'] if getenv('SPORTSLINEUP_AUTHORIZED_EVENTS_PATH') else []),
             'note': 'Gracenote requires a licensed contract and selected local TV lineup. Extra publicly reachable sports feeds are opt-in research connectors. Verify API rights before distribution; no source certifies subscriber-specific viewing eligibility.'}
 
 

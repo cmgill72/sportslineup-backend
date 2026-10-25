@@ -46,7 +46,7 @@ services:
       - key: SPORTSLINEUP_NETWORK_LOGO_MANIFEST_URL
         sync: false
 
-      # Optional contracted TV/streaming data across all eight sport categories.
+      # Optional contracted TV/streaming data across all nine sport categories.
       - key: SPORTSLINEUP_AUTHORIZED_FEED_URL
         sync: false
       - key: SPORTSLINEUP_AUTHORIZED_FEED_TOKEN

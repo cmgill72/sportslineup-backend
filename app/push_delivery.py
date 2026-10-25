@@ -92,7 +92,7 @@ def authenticate(conn, device_id: str, install_key: str) -> bool:
 def subscribe(device_id: str, install_key: str, event_id: str, title: str,
               sport: str, expires: int, prefs: dict, activity_token: str | None = None) -> bool:
     if not configured() or not 1 <= len(event_id) <= 150 or not 1 <= len(title) <= 180 or sport not in {
-        'nba','mlb','ncaa_football','ncaa_basketball','nhl','pga','wnba','ufc'}: return False
+        'nfl','nba','mlb','ncaa_football','ncaa_basketball','nhl','pga','wnba','ufc'}: return False
     if not isinstance(prefs, dict) or set(prefs) - _ALLOWED or any(type(v) is not bool for v in prefs.values()): return False
     if expires < time.time() - 60 or expires > time.time() + 16*86400: return False
     if activity_token is not None and not check_token(activity_token): return False
@@ -152,7 +152,7 @@ def _interval_key(progress: str, sport: str) -> str | None:
     # transitions produce alerts. No guessed progress for golf/MMA.
     if sport == 'mlb': pattern = r'(?:inning|inn|top|bottom)\s*(\d{1,2})'
     elif sport == 'nhl': pattern = r'(?:period|p)\s*(\d)'
-    elif sport in {'nba','wnba','ncaa_football','ncaa_basketball'}:
+    elif sport in {'nfl','nba','wnba','ncaa_football','ncaa_basketball'}:
         pattern = r'(?:quarter|q|half)\s*(\d)'
     else: return None
     match = re.search(pattern, progress,flags=re.IGNORECASE)
@@ -174,8 +174,8 @@ def _milestones(before: dict | None, after: dict, sport: str = 'nba') -> list[st
             prev_key, curr_key = _interval_key(prevprogress,sport), _interval_key(progress,sport)
             if prev_key and curr_key and curr_key != prev_key:
                 found.append('interval:'+curr_key)
-    if now == 'live' and sport in {'nba','wnba','ncaa_football','ncaa_basketball','nhl','mlb'}:
-        threshold = {'nba':5,'wnba':5,'ncaa_basketball':5,'ncaa_football':7,'nhl':1,'mlb':1}[sport]
+    if now == 'live' and sport in {'nfl','nba','wnba','ncaa_football','ncaa_basketball','nhl','mlb'}:
+        threshold = {'nfl':7,'nba':5,'wnba':5,'ncaa_basketball':5,'ncaa_football':7,'nhl':1,'mlb':1}[sport]
         try:
             gap = abs(int(after['home'])-int(after['away']))
             oldgap = abs(int(before['home'])-int(before['away']))

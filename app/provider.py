@@ -189,6 +189,12 @@ async def fetch_schedule(day: date, tz_name: str = 'America/Chicago', transport:
             for sport in SOURCE_SPORTS:
                 requests.append(('schedule', src_day.isoformat(), sport,
                                  get_json('eventsday.php', {'d': src_day.isoformat(), 's': sport})))
+            # Dedicated NFL league request (TheSportsDB ID 4391) protects the
+            # Sunday lineup from mixed American Football pagination/truncation.
+            # Keep preview-key traffic low; daily American Football remains the fallback.
+            if not is_free:
+                requests.append(('schedule', src_day.isoformat(), 'NFL',
+                                 get_json('eventsday.php', {'d': src_day.isoformat(), 'l': '4391'})))
             requests.append(('tv', src_day.isoformat(), 'US',
                              get_json('eventstv.php', {'d': src_day.isoformat(), 'a': 'United_States'})))
         raw = await asyncio.gather(*(r[3] for r in requests), return_exceptions=True)

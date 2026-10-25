@@ -15,6 +15,7 @@ import httpx
 
 SOURCES = ('mlb', 'nhl', 'espn')
 ESPN_LEAGUES = {
+    'nfl': ('football', 'nfl'),
     'nba': ('basketball', 'nba'),
     'mlb': ('baseball', 'mlb'),
     'ncaa_football': ('football', 'college-football'),

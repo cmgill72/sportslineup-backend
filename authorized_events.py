@@ -1,4 +1,4 @@
-"""Optional, contract-authorized FULL event feed for all eight sport categories.
+"""Optional, contract-authorized FULL event feed for all nine sport categories.
 
 Unlike the v0.3 add-only TV file, these records may create their own events.
 Requires the deployer to possess the appropriate schedule/broadcast data license.
